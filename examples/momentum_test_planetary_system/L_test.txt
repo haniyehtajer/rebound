@@ -1,0 +1,8 @@
+n before: 8	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	8.512668e-04	L magnitude = 8.512668e-04	
+n after: 1	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	-1.662402e-37	L magnitude = 1.662402e-37	
+n before: 8	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	8.512668e-04	L magnitude = 8.512668e-04	
+n after: 1	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	-1.662402e-37	L magnitude = 1.662402e-37	
+n before: 8	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	8.512668e-04	L magnitude = 8.512668e-04	
+n after: 1	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	-1.662402e-37	L magnitude = 1.662402e-37	
+n before: 8	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	8.512668e-04	L magnitude = 8.512668e-04	
+n after: 1	L vector components (x, y, z) = 0.000000e+00	0.000000e+00	-1.832030e-37	L magnitude = 1.832030e-37	
