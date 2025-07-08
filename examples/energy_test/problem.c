@@ -605,14 +605,15 @@ int main(int argc, char* argv[]){
     r->collision_resolve = reb_collision_resolve_fragment;
     r->rand_seed = 1;
 
-    //scale = 0.5, b_targ = 0 results in "simply merged"
-    //scale = 1, b_targ = 0 results in "effectively merged"
-    //scale = 50, b_targ = 0 results in "partial accretion"
-    //scale = 100, b_targ = 0 results in "partial erosion"
-    //scale = 200, b_targ = 0 results in "super-catastrophic"
-    //scale = 1, b_targ = 1.5 results in "graze and merge"
-    //scale = 1.5, b_targ = 1.5 results in "elastic bounce"
-    //scale = 1000, b_targ = 1.5 results in "grazing partial erosion"
+    //b_rtarg is ratio of b and target radius.
+    //scale = 0.5, b_rtarg = 0 results in "simply merged"
+    //scale = 1, b_rtarg = 0 results in "effectively merged"
+    //scale = 50, b_rtarg = 0 results in "partial accretion"
+    //scale = 100, b_rtarg = 0 results in "partial erosion"
+    //scale = 200, b_rtarg = 0 results in "super-catastrophic"
+    //scale = 1, b_rtarg = 1.5 results in "graze and merge"
+    //scale = 1.5, b_rtarg = 1.5 results in "elastic bounce"
+    //scale = 1000, b_rtarg = 1.5 results in "grazing partial erosion"
 
     double scale = 0.5;
     double b_rtarg = 0;
