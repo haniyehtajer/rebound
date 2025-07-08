@@ -4,8 +4,9 @@
 #include <math.h>
 #include "rebound.h"
 
+char TITLE[100] = "eqfif_tr_";
 
-double min_frag_mass = 1e-4;
+double min_frag_mass = 0.01;
 int tot_no_frags = 0;  //if restarting a simulation this needs to be changed to the last number of frags in the simulation, otherwise new fragments added will rewrite exisiting frags
 
 
@@ -603,38 +604,44 @@ int main(int argc, char* argv[]){
     r->integrator = REB_INTEGRATOR_MERCURIUS;
     r->collision = REB_COLLISION_DIRECT;
     r->collision_resolve = reb_collision_resolve_fragment;
-    r->rand_seed = 3;
+    r->rand_seed = 1;
 
-    //scale = 1 results in "elastic bounce"
-    //scale = 1000 results in "grazing partial erosion"
+    //scale = 0.5, b_targ = 0 results in "simply merged"
+    //scale = 1, b_targ = 0 results in "effectively merged"
+    //scale = 50, b_targ = 0 results in "partial accretion"
+    //scale = 100, b_targ = 0 results in "partial erosion"
+    //scale = 200, b_targ = 0 results in "super-catastrophic"
+    //scale = 1, b_targ = 1.5 results in "graze and merge"
+    //scale = 1.5, b_targ = 1.5 results in "elastic bounce"
+    //scale = 1000, b_targ = 1.5 results in "grazing partial erosion"
 
-    double scale = 1;
+    double scale = 1000;
     double b_rtarg = 1.5;
 
     struct reb_particle p1 = {0};
-    p1.m = 1e-3;
+    p1.m = 0.05;
     p1.r = 1 * scale;
     p1.x = 0; p1.y = b_rtarg * scale; p1.z = 0;
-    p1.vx = scale;
+    p1.vx = p1.r;
     
     reb_simulation_add(r, p1);
 
     struct reb_particle p2 = {0};
-    p2.m = 1e-3;
+    p2.m = 0.05;
     p2.r = 1 * scale;
     p2.x = 2 * scale; p2.y = 0; p2.z = 0;
-    p2.vx = -1 * scale;
+    p2.vx = -1 * p2.r;
   
     reb_simulation_add(r, p2);
 
-    FILE* test = fopen("mass_test_grazing.txt","a+");
+    FILE* test = fopen("mass_test.txt","a+");
     
     float m_total = 0;
     for (int j = 0; j < r->N; j++){
         m_total += r->particles[j].m;
     }
-    fprintf(test, "Number of particles before collision = %u\t", r->N);
-    fprintf(test, "total mass = %e\t", m_total);
+    fprintf(test, "%u\t", r->N);
+    fprintf(test, "%e\t", m_total);
     fprintf(test, "\n");
 
     reb_simulation_integrate(r, 1);
@@ -642,13 +649,11 @@ int main(int argc, char* argv[]){
     for (int j = 0; j < r->N; j++){
         m_total += r->particles[j].m;
     }
-    fprintf(test, "Number of particles after collision = %u\t", r->N);
-    fprintf(test, "total mass = %e\t", m_total);
+    fprintf(test, "%u\t", r->N);
+    fprintf(test, "%e\t", m_total);
     fprintf(test, "\n");
-    
 
     fclose(test);
-
 
 }
 
