@@ -4,7 +4,7 @@
 #include <math.h>
 #include "rebound.h"
 
-char TITLE[100] = "eqfif_tr_";
+char TITLE[100] = "ueda_v4_";
 
 double min_frag_mass = 0.1;
 int tot_no_frags = 0;  //if restarting a simulation this needs to be changed to the last number of frags in the simulation, otherwise new fragments added will rewrite exisiting frags
@@ -160,7 +160,6 @@ void add_fragments(struct reb_simulation* const r, struct reb_collision c, struc
         Slr1.r = get_radii(Slr1.m, rho);
         sprintf(hash,"FRAG%d", tot_no_frags+1);
         Slr1.hash = reb_hash(hash);
-        printf("%s hash, mass:      %u %e\n", hash, Slr1.hash, Slr1.m);
         mxsum[0] += Slr1.m*Slr1.x;
         mxsum[1] += Slr1.m*Slr1.y;    
         mxsum[2] += Slr1.m*Slr1.z;
@@ -190,7 +189,6 @@ void add_fragments(struct reb_simulation* const r, struct reb_collision c, struc
         fragment.last_collision = r->t;
         sprintf(hash, "FRAG%d", i);
         fragment.hash = reb_hash(hash);
-        printf("%s hash, mass:      %u %e\n", hash, fragment.hash, fragment.m);
         mxsum[0] +=fragment.m*fragment.x;
         mxsum[1] += fragment.m*fragment.y;    
         mxsum[2] += fragment.m*fragment.z;
@@ -295,7 +293,6 @@ int hit_and_run(struct reb_simulation* const r, struct reb_collision c, struct c
         double v_crit = params->V_esc*(c1*zeta*fac + c2*zeta +c3*fac + c4);
 
         if (params->Vi <= v_crit){             //if impact velocity is low, the hit-and-run results in a merger.
-            printf("GRAZE AND MERGE\n");  
             params->collision_type = 1;          
             merge(r,c,params);
             return swap;
@@ -304,14 +301,12 @@ int hit_and_run(struct reb_simulation* const r, struct reb_collision c, struct c
         else{ //vi>v_crit
             if (params->Mlr<targ_m){ //Target is being eroded, projectile should also fragment
                 if (targ_m+imp_m <= 2*min_frag_mass){ //not enough mass to produce new fragments
-                    printf("ELASTIC BOUNCE\n");
                     params->collision_type=0;
                     reb_collision_resolve_hardsphere(r,c);
                     swap = 0;
                                                        }
                 else{
                     params->Mlr = MAX(params->Mlr, min_frag_mass);
-                    printf("GRAZING PARTIAL EROSION\n");
                     params->collision_type = 3;
                     add_fragments(r,c,params);
                     }
@@ -326,14 +321,12 @@ int hit_and_run(struct reb_simulation* const r, struct reb_collision c, struct c
             double new_projectile_mass = projectile->m - projectile_mass_accreted;
             Mlr_dag = MAX(Mlr_dag, min_frag_mass);
             if (new_projectile_mass-Mlr_dag < min_frag_mass){
-                    printf("ELASTIC BOUNCE\n");
                     params->collision_type=0;
                     reb_collision_resolve_hardsphere(r,c);
                     swap = 0;
                                                             }
                 else{
                     params->Mslr = Mlr_dag;
-                    printf("HIT AND RUN\n");
                     params->collision_type = 2;
                     add_fragments(r,c,params);
                     }
@@ -369,8 +362,6 @@ void print_collision_array(struct reb_simulation* const r, struct reb_collision 
 
 void heartbeat(struct reb_simulation* sim){
     if (reb_simulation_output_check(sim, 1000)){   //heartbeat is at every 100 years
-        reb_simulation_output_timing(sim, 0);
-        printf("Walltime(s) = %f \n", sim->walltime);
         for (int i=0;i<sim->N;i++){
             struct reb_orbit o =  reb_orbit_from_particle(sim->G, sim->particles[i], sim->particles[0]);
             if (o.d > 100.){
@@ -448,10 +439,6 @@ int reb_collision_resolve_fragment(struct reb_simulation* const r, struct reb_co
 
     double imp_m = particles[j].m;
     double targ_m = particles[i].m;
-
-    printf("TIME OF COLLISION: %e\n", r->t);
-    printf("Target hash, mass = %u %e\n", particles[i].hash, targ_m);
-    printf("Projectile hash, mass = %u %e\n", particles[j].hash, imp_m);
 
     double M_tot = imp_m + targ_m;
     double G = r->G;
@@ -539,36 +526,25 @@ int reb_collision_resolve_fragment(struct reb_simulation* const r, struct reb_co
     params->Mlr = Mlr;
 
 
-    printf("Mp/Mt:    %0.4f\n", imp_m/targ_m);
-    printf("Mlr/Mt:    %0.4f\n", Mlr/targ_m);
-    printf("Mlr/Mtot:    %0.4f\n", Mlr/M_tot);
-    printf("b/Rtarg:     %0.4f\n", b/targ_r);
-    printf("Vimp/Vesc:     %0.4f\n",  Vi/V_esc);
-    printf("Q/ Qstar:     %0.4f\n", Q/Q_star);
-    printf("COLLISION TYPE: ");
 
     if (Vi <= V_esc){
         params->collision_type = 1;
-        printf("SIMPLY MERGED\n");
         merge(r,c, params);
                     }
     else{  //Vi > V_esc
         if (b<targ_r){ //non-grazing regime
             if (M_tot - params->Mlr < min_frag_mass){
                 params->collision_type = 1;
-                printf("EFFECTIVELY MERGED\n");
                 merge(r,c,params);
                                                      }
             else{ // M_tot - params->Mlr >= min_frag_mass; fragments will be produced unless it is a graze and merge or elastic bounce 
                 if (params->Mlr < targ_m){
                     if (params->Mlr <= 0.1*targ_m){
-                        printf("SUPER-CATASTROPHIC\n");
                         params->collision_type = 4;
                         params->Mlr = MAX(Mlr, min_frag_mass);
                         add_fragments(r,c,params);
                                                    }
                     else{
-                        printf("PARTIAL EROSION\n");
                         params->collision_type = 3;
                         params->Mlr = MAX(Mlr, min_frag_mass);
                         add_fragments(r,c,params);
@@ -576,7 +552,6 @@ int reb_collision_resolve_fragment(struct reb_simulation* const r, struct reb_co
                                           }
                                     
                 else{  //(params->Mlr >= targ_m)
-                            printf("PARTIAL ACCRETION\n");
                             params->collision_type = 2;
                             add_fragments(r,c,params);
                     }
@@ -598,59 +573,53 @@ void heartbeat(struct reb_simulation* r);
 
 
 int main(int argc, char* argv[]){
-    struct reb_simulation* r = reb_simulation_create();
-    r->G = 39.476926421373;
-    r->dt = 1;
-    r->integrator = REB_INTEGRATOR_MERCURIUS;
-    r->collision = REB_COLLISION_DIRECT;
-    r->collision_resolve = reb_collision_resolve_fragment;
 
-    //scale = 1 results in "simply merged"
-    //scale = 10 results in "effectively merged"
-    //scale = 100 results in "partial accretion"
-    //scale = 200 results in "partial erosion"
-    //scale = 1000 results in "super-catastrophic"
-    double scale = 1.;
-
-    struct reb_particle p1 = {0};
-    p1.m = 1;
-    p1.r = 1 * scale;
-    p1.x = 0; p1.y = 0; p1.z = 0;
-    p1.vx = p1.r;
+ struct reb_simulation* sim = reb_simulation_create(); //creates simulation
+    sim->integrator = REB_INTEGRATOR_MERCURIUS;
+    sim->collision = REB_COLLISION_DIRECT;
+    sim->dt = 1.0;
+    double tot_mass_i = 0;
+    sim->collision_resolve = reb_collision_resolve_fragment;
     
-    reb_simulation_add(r, p1);
+    // Add particle at origin:
+    struct reb_particle p = {0};
+    p.r = 1.;
+    p.m = 1.;
+    printf("Particle 0 mass = %f \n", p.m);
+    printf("Particle 0 xvelocity = %f \n", p.vx);
+    printf("Particle 0 x = %f \n", p.x);
+    tot_mass_i += p.m;
+    reb_simulation_add(sim, p);
 
-    struct reb_particle p2 = {0};
-    p2.m = 1;
-    p2.r = 1 * scale;
-    p2.x = 2 * scale; p2.y = 0; p2.z = 0;
-    p2.vx = -1 * p2.r;
-  
-    reb_simulation_add(r, p2);
+    // Shift particle and add a copy:
+    p.r = 1.;
+    p.x = 2.5;
+    p.vx = -1;
+    p.m = 1.;
+    printf("Particle 1 mass = %f \n", p.m);
+    printf("Particle 1 xvelocity = %f \n", p.vx);
+    printf("Particle 1 x = %f \n", p.x);
+    tot_mass_i += p.m;
+    reb_simulation_add(sim, p);
 
-    FILE* test = fopen("mass_test_head_on.txt","a+");
+    reb_simulation_integrate(sim, 1); //integrates system for 1 timestep
     
-    float m_total = 0;
-    for (int j = 0; j < r->N; j++){
-        m_total += r->particles[j].m;
+    printf("Number of particles left in simulation: %d \n", sim->N); // Only one particle left.
+    struct reb_particle p_temp;
+    double tot_mass_f = 0; //final total mass
+    for (int i=0; i < sim->N; i++){ //this should technically be i < N, but I'm printing more cause they exist?!
+        p_temp = sim->particles[i];
+        tot_mass_f += p_temp.m;
+        printf("Particle %d mass = %f \n", i, p_temp.m);
+        printf("Particle %d xvelocity = %f \n", i, p_temp.vx);
+        printf("Particle %d x = %f \n", i, p_temp.x);
     }
-    fprintf(test, "%u\t", r->N);
-    fprintf(test, "%f\t", m_total);
-    fprintf(test, "\n");
-
-    reb_simulation_integrate(r, 1);
-    m_total = 0;
-    for (int j = 0; j < r->N; j++){
-        m_total += r->particles[j].m;
-    }
-    fprintf(test, "%u\t", r->N);
-    fprintf(test, "%f\t", m_total);
-    fprintf(test, "\n");
+    printf("Total mass after collision = %f \n", tot_mass_f);
     
 
-    fclose(test);
 
-
+ 
 }
+
 
 
