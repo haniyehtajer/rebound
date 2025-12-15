@@ -213,6 +213,7 @@ void reb_integrator_init(struct reb_simulation* r){
 
 void reb_simulation_reset_integrator(struct reb_simulation* r){
     r->integrator = REB_INTEGRATOR_IAS15;
+    r->gravity = REB_GRAVITY_BASIC; // Some integrators set their own gravity routine. Resetting.
     r->gravity_ignore_terms = 0;
     reb_integrator_ias15_reset(r);
     reb_integrator_mercurius_reset(r);
@@ -234,7 +235,7 @@ void reb_simulation_update_acceleration(struct reb_simulation* r){
     if (r->N_var){
         reb_calculate_acceleration_var(r);
     }
-    if (r->additional_forces  && (r->integrator != REB_INTEGRATOR_MERCURIUS || r->ri_mercurius.mode==0) && (r->integrator != REB_INTEGRATOR_TRACE || r->ri_trace.mode==0 || r->ri_trace.mode==3)){
+    if (r->additional_forces  && (r->integrator != REB_INTEGRATOR_MERCURIUS || r->ri_mercurius.mode==0) && (r->integrator != REB_INTEGRATOR_TRACE || r->ri_trace.mode==REB_TRACE_MODE_INTERACTION || r->ri_trace.mode==REB_TRACE_MODE_FULL)){
         // For Mercurius:
         // Additional forces are only calculated in the kick step, not during close encounter
         if (r->integrator==REB_INTEGRATOR_MERCURIUS){

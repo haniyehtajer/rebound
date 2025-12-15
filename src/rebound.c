@@ -69,7 +69,7 @@ void usleep(__int64 usec);
 const int reb_max_messages_length = 1024;   // needs to be constant expression for array size
 const int reb_N_max_messages = 10;
 const char* reb_build_str = __DATE__ " " __TIME__;  // Date and time build string. 
-const char* reb_version_str = "4.4.8";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* reb_version_str = "4.4.11";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* reb_githash_str = STRINGIFY(GITHASH);             // This line gets updated automatically. Do not edit manually.
 
 static int reb_simulation_error_message_waiting(struct reb_simulation* const r);
@@ -516,8 +516,6 @@ void reb_simulation_init(struct reb_simulation* r){
     r->var_config   = NULL;     
     r->exit_min_distance    = 0;    
     r->exit_max_distance    = 0;    
-    r->max_radius0    = 0.;   
-    r->max_radius1    = 0.;   
     r->status       = REB_STATUS_SUCCESS;
     r->exact_finish_time    = 1;
     r->force_is_velocity_dependent = 0;
@@ -581,7 +579,7 @@ void reb_simulation_init(struct reb_simulation* r){
     // ********** IAS15
     r->ri_ias15.epsilon         = 1e-9;
     r->ri_ias15.min_dt      = 0;
-    r->ri_ias15.adaptive_mode = 2; // new default since January 2024
+    r->ri_ias15.adaptive_mode = REB_IAS15_PRS23; // new default since January 2024
     r->ri_ias15.iterations_max_exceeded = 0;    
 
     // ********** SEI

@@ -43,7 +43,7 @@
 #define MIN(a, b) ((a) > (b) ? (b) : (a))    ///< Returns the minimum of a and b
 #define MAX(a, b) ((a) > (b) ? (a) : (b))    ///< Returns the maximum of a and b
 
-static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const r, struct reb_vec6d gb, struct reb_vec6d gbunmod, int ri, double p1_r,  double* nearest_r2, struct reb_collision* collision_nearest, struct reb_treecell* c);
+static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const r, struct reb_vec6d gb, struct reb_vec6d gbunmod, int ri, double p1_r,  double second_largest_radius, struct reb_collision* collision_nearest, struct reb_treecell* c);
 static void reb_tree_check_for_overlapping_trajectories_in_cell(struct reb_simulation* const r, struct reb_vec6d gb, struct reb_vec6d gbunmod, int ri, double p1_r, double p1_r_plus_dtv, struct reb_collision* collision_nearest, struct reb_treecell* c, double maxdrift);
 
 void reb_collision_search(struct reb_simulation* const r){
@@ -258,6 +258,15 @@ void reb_collision_search(struct reb_simulation* const r){
                 int N_ghost_zcol = (r->N_ghost_z>1?1:r->N_ghost_z);
                 const struct reb_particle* const particles = r->particles;
                 const int N = r->N - r->N_var;
+                // Find second largest radius
+                int l1 = -1;
+                int l2 = -1;
+                reb_simulation_two_largest_particles(r, &l1, &l2);
+                double second_largest_radius = 0;
+                if (l2 != -1){
+                    second_largest_radius = r->particles[l2].r;
+                }
+
                 // Loop over all particles
 #pragma omp parallel for schedule(guided)
                 for (int i=0;i<N;i++){
@@ -269,7 +278,6 @@ void reb_collision_search(struct reb_simulation* const r){
                     collision_nearest.p1 = i;
                     collision_nearest.p2 = -1;
                     double p1_r = p1.r;
-                    double nearest_r2 = r->boxsize_max*r->boxsize_max/4.;
                     // Loop over ghost boxes.
                     for (int gbx=-N_ghost_xcol; gbx<=N_ghost_xcol; gbx++){
                         for (int gby=-N_ghost_ycol; gby<=N_ghost_ycol; gby++){
@@ -287,7 +295,7 @@ void reb_collision_search(struct reb_simulation* const r){
                                 for (int ri=0;ri<r->N_root;ri++){
                                     struct reb_treecell* rootcell = r->tree_root[ri];
                                     if (rootcell!=NULL){
-                                        reb_tree_get_nearest_neighbour_in_cell(r, gb, gbunmod,ri,p1_r,&nearest_r2,&collision_nearest,rootcell);
+                                        reb_tree_get_nearest_neighbour_in_cell(r, gb, gbunmod, ri, p1_r, second_largest_radius, &collision_nearest, rootcell);
                                     }
                                 }
                             }
@@ -371,7 +379,7 @@ void reb_collision_search(struct reb_simulation* const r){
     }
     // Loop over all collisions previously found in reb_collision_search().
 
-    int (*resolve) (struct reb_simulation* const r, struct reb_collision c) = r->collision_resolve;
+    enum REB_COLLISION_RESOLVE_OUTCOME (*resolve) (struct reb_simulation* const r, struct reb_collision c) = r->collision_resolve;
     if (resolve==NULL){
         // Default is to throw an exception
         resolve = reb_collision_resolve_halt;
@@ -386,10 +394,10 @@ void reb_collision_search(struct reb_simulation* const r){
         struct reb_collision c = r->collisions[i];
         if (c.p1 != -1 && c.p2 != -1){
             // Resolve collision
-            int outcome = resolve(r, c);
+            enum REB_COLLISION_RESOLVE_OUTCOME outcome = resolve(r, c);
 
             // Remove particles
-            if (outcome & 1){
+            if (outcome & REB_COLLISION_RESOLVE_OUTCOME_REMOVE_P1){
                 // Remove p1
                 int removedp1 = reb_simulation_remove_particle(r,c.p1,collision_resolve_keep_sorted);
                 if (removedp1){
@@ -440,7 +448,7 @@ void reb_collision_search(struct reb_simulation* const r){
                     }
                 }
             }
-            if (outcome & 2){
+            if (outcome & REB_COLLISION_RESOLVE_OUTCOME_REMOVE_P2){
                 // Remove p1
                 int removedp2 = reb_simulation_remove_particle(r,c.p2,collision_resolve_keep_sorted);
                 if (removedp2){ // Update other collisions
@@ -488,7 +496,7 @@ void reb_collision_search(struct reb_simulation* const r){
 /**
  * @brief Workaround for python setters.
  **/
-void reb_simulation_set_collision_resolve(struct reb_simulation* r, int (*resolve) (struct reb_simulation* const r, struct reb_collision c)){
+void reb_simulation_set_collision_resolve(struct reb_simulation* r, enum REB_COLLISION_RESOLVE_OUTCOME (*resolve) (struct reb_simulation* const r, struct reb_collision c)){
     r->collision_resolve = resolve;
 }
 
@@ -501,12 +509,12 @@ void reb_simulation_set_collision_resolve(struct reb_simulation* r, int (*resolv
  * @param gb (Shifted) position and velocity of the particle.
  * @param ri Index of the root box currently being searched in.
  * @param p1_r Radius of the particle (this is not in gb).
- * @param nearest_r2 Pointer to the nearest neighbour found so far.
+ * @param second_largest_radius The radius of the second largest particles.
  * @param collision_nearest Pointer to the nearest collision found so far.
  * @param c Pointer to the cell currently being searched in.
  * @param gbunmod Ghostbox unmodified
  */
-static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const r, struct reb_vec6d gb, struct reb_vec6d gbunmod, int ri, double p1_r, double* nearest_r2, struct reb_collision* collision_nearest, struct reb_treecell* c){
+static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const r, struct reb_vec6d gb, struct reb_vec6d gbunmod, int ri, double p1_r, double second_largest_radius, struct reb_collision* collision_nearest, struct reb_treecell* c){
     const struct reb_particle* const particles = r->particles;
     if (c->pt>=0){     
         // c is a leaf node
@@ -545,7 +553,6 @@ static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const 
             double dz = gb.z - p2.z;
             double r2 = dx*dx+dy*dy+dz*dz;
             // A closer neighbour has already been found 
-            //if (r2 > *nearest_r2) return;
             double rp = p1_r+p2.r;
             // reb_particles are not overlapping 
             if (r2 > rp*rp) return;
@@ -555,7 +562,6 @@ static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const 
             // reb_particles are not approaching each other
             if (dvx*dx + dvy*dy + dvz*dz >0) return;
             // Found a new nearest neighbour. Save it for later.
-            *nearest_r2 = r2;
             collision_nearest->ri = ri;
             collision_nearest->p2 = c->pt;
             collision_nearest->gb = gbunmod;
@@ -577,13 +583,13 @@ static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const 
         double dy = gb.y - c->y;
         double dz = gb.z - c->z;
         double r2 = dx*dx + dy*dy + dz*dz;
-        double rp  = p1_r + r->max_radius1 + 0.86602540378443*c->w;
+        double rp  = p1_r + second_largest_radius + 0.86602540378443*c->w;
         // Check if we need to decent into daughter cells
         if (r2 < rp*rp ){
             for (int o=0;o<8;o++){
                 struct reb_treecell* d = c->oct[o];
                 if (d!=NULL){
-                    reb_tree_get_nearest_neighbour_in_cell(r, gb,gbunmod,ri,p1_r,nearest_r2,collision_nearest,d);
+                    reb_tree_get_nearest_neighbour_in_cell(r, gb,gbunmod,ri,p1_r,second_largest_radius,collision_nearest,d);
                 }
             }
         }
@@ -658,7 +664,7 @@ static void reb_tree_check_for_overlapping_trajectories_in_cell(struct reb_simul
 
 
 
-int reb_collision_resolve_hardsphere(struct reb_simulation* const r, struct reb_collision c){
+enum REB_COLLISION_RESOLVE_OUTCOME reb_collision_resolve_hardsphere(struct reb_simulation* const r, struct reb_collision c){
     struct reb_particle* const particles = r->particles;
     struct reb_particle p1 = particles[c.p1];
     struct reb_particle p2;
@@ -751,17 +757,17 @@ int reb_collision_resolve_hardsphere(struct reb_simulation* const r, struct reb_
         r->collisions_plog += -fabs(x21)*(oldvyouter-particles[c.p2].vy) * p2.m;
         r->collisions_log_n ++;
     }
-    return 0;
+    return REB_COLLISION_RESOLVE_OUTCOME_REMOVE_NONE;
 }
 
-int reb_collision_resolve_halt(struct reb_simulation* const r, struct reb_collision c){
+enum REB_COLLISION_RESOLVE_OUTCOME reb_collision_resolve_halt(struct reb_simulation* const r, struct reb_collision c){
     r->status = REB_STATUS_COLLISION;
     r->particles[c.p1].last_collision = r->t;
     r->particles[c.p2].last_collision = r->t;
-    return 0; // don't remove either particle
+    return REB_COLLISION_RESOLVE_OUTCOME_REMOVE_NONE; // don't remove either particle
 }
 
-int reb_collision_resolve_merge(struct reb_simulation* const r, struct reb_collision c){
+enum REB_COLLISION_RESOLVE_OUTCOME reb_collision_resolve_merge(struct reb_simulation* const r, struct reb_collision c){
     if (r->particles[c.p1].last_collision==r->t || r->particles[c.p2].last_collision==r->t) return 0;
 
     // Every collision will cause two callbacks (with p1/p2 interchanged).
@@ -769,7 +775,7 @@ int reb_collision_resolve_merge(struct reb_simulation* const r, struct reb_colli
     // This will keep N_active meaningful even after mergers.
     int swap = 0;
     unsigned int i = c.p1;
-    unsigned int j = c.p2;   //want j to be removed particle
+    unsigned int j = c.p2;
     if (j<i){
         swap = 1;
         i = c.p2;
@@ -868,5 +874,5 @@ int reb_collision_resolve_merge(struct reb_simulation* const r, struct reb_colli
         r->energy_offset += Ei - Ef;
     }
 
-    return swap?1:2; // Remove particle p2 from simulation
+    return swap ? REB_COLLISION_RESOLVE_OUTCOME_REMOVE_P1 : REB_COLLISION_RESOLVE_OUTCOME_REMOVE_P2; // Remove particle with higher index
 }

@@ -318,7 +318,7 @@ class Particle(Structure):
             if a is not None and P is not None:
                 raise ValueError("You can pass either the semimajor axis or orbital period, but not both.")
             if a is None:
-                a = (P**2*simulation.G*(primary.m + self.m)/(4.*math.pi**2))**(1./3.)
+                a = (P**2*simulation.G*(primary.m + self.m)/(4.*math.pi**2))**(1./3.)*(P/abs(P)) # keep sign of P for hyperbolic orbits
             if notNone(pal):
                 # Pal orbital parameters
                 if h is None:
@@ -958,6 +958,10 @@ class Particle(Structure):
     def jacobi_com(self):
         clibrebound.reb_simulation_jacobi_com.restype = Particle
         return clibrebound.reb_simulation_jacobi_com(byref(self))
+    # Calculate center of mass with another particle
+    def com_with(self, p):
+        clibrebound.reb_particle_com_of_pair.restype = Particle
+        return clibrebound.reb_particle_com_of_pair(p, self)
     @property
     def hash(self):
         """
