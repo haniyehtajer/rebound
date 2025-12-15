@@ -1,0 +1,24 @@
+Compiling shared library librebound.so ...
+make -C ../../src/
+make[1]: Entering directory '/home/tajer.1/rebound/src'
+make[1]: Nothing to be done for 'all'.
+make[1]: Leaving directory '/home/tajer.1/rebound/src'
+
+Compiling problem.c ...
+cc -I../../src/ -Wl,-rpath,./ -std=c99 -Wpointer-arith -D_GNU_SOURCE -O3 -fPIC -Wall -g  -Wno-unknown-pragmas -DSERVER -DGITHASH=350dd251da521855fc27eacdeaaa6e9f41a279ca problem.c -L. -lrebound -lm -lrt -o rebound
+problem.c: In function ‘add_fragments’:
+problem.c:161:27: warning: ‘%d’ directive writing between 1 and 11 bytes into a region of size 6 [-Wformat-overflow=]
+         sprintf(hash,"FRAG%d", tot_no_frags+1);
+                           ^~
+problem.c:161:22: note: directive argument in the range [-2147483647, 2147483647]
+         sprintf(hash,"FRAG%d", tot_no_frags+1);
+                      ^~~~~~~~
+problem.c:161:9: note: ‘sprintf’ output between 6 and 16 bytes into a destination of size 10
+         sprintf(hash,"FRAG%d", tot_no_frags+1);
+         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Compilation successful. To run REBOUND, execute the file 'rebound'.
+
+
+[1mWarning![0m At least 10 predictor corrector loops in IAS15 did not converge. This is typically an indication of the timestep being too large.
+slurmstepd: error: *** JOB 9014478 ON u071 CANCELLED AT 2025-10-25T16:12:47 DUE TO TIME LIMIT ***
